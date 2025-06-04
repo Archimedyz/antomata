@@ -19,11 +19,20 @@ UPDATE_DELAY = 1000 // UPDATES_PER_SECOND
 CANVAS_WIDTH = 640
 CANVAS_HEIGHT = 640
 
+MIN_WINDOW_WIDTH = 320
+MIN_WINDOW_HEIGHT = 320
+
+_state = {
+    "grid": None,
+    "ant": None,
+    "running": True,
+    "steps_taken": 0
+}
 
 root = tk.Tk()
 canvas = tk.Canvas(root, width=CANVAS_WIDTH, height=CANVAS_HEIGHT)
 
-root.minsize(CANVAS_WIDTH, CANVAS_HEIGHT)
+root.minsize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
 root.update_idletasks() # Ensures the canvas dimensions are calculated
 
 canvas.pack(fill=tk.BOTH, expand=True)
@@ -78,19 +87,23 @@ class Ant:
                 self.x -= 1
                 dx -= SQUARE_SIZE
 
-        self.steps_taken += STEPS_PER_UPDATE
+        _state["steps_taken"] += STEPS_PER_UPDATE
 
         canvas.move(self.canvas_id, dx, dy)
 
-def render_and_update(grid, ant):
-    ant.move(grid)
+def render_and_update():
+    if not _state["running"]:
+        root.after(UPDATE_DELAY, render_and_update)
+        return
 
-    if (ant.steps_taken < MAX_STEPS):
-        root.after(UPDATE_DELAY, lambda : render_and_update(grid, ant))
+    _state["ant"].move(_state["grid"])
+
+    if (_state["steps_taken"] < MAX_STEPS):
+        root.after(UPDATE_DELAY, render_and_update)
     else:
         print("Finished simulation. Reached MAX_STEPS limit.")
 
-def newSquare(x, y):
+def newGridSquare(x, y):
 
     x1 = x * SQUARE_SIZE
     y1 = y * SQUARE_SIZE
@@ -101,17 +114,42 @@ def newSquare(x, y):
 
 def initGrid():
     # todo: bind grid to canvas size
-    grid = [[newSquare(x, y) for x in range(50)] for y in range(50)]
+    grid = [[newGridSquare(x, y) for x in range(50)] for y in range(50)]
 
     return grid
 
-def run():    
+canvas
+
+def on_mouse_press(event):
+    # This sets the anchor point for dragging the canvas content
+    canvas.scan_mark(event.x, event.y)
+
+def on_mouse_motion(event):
+    # When dragging with the middle mouse button, scroll the canvas
+    canvas.scan_dragto(event.x, event.y, gain=1)
+
+def on_running_toggle(event=None):
+    _state["running"] = not _state["running"]
+    newRunningState = "Running" if _state["running"] else "Paused"
+    print("Simulation state toggled to: " + newRunningState)
+
+def bindEventHandlers():
+    canvas.bind("<ButtonPress-1>", on_mouse_press)
+    canvas.bind("<B1-Motion>", on_mouse_motion)
+
+    root.bind("<space>", on_running_toggle)
+
+
+
+def run():
     root.title("Antomata")
 
-    grid = initGrid()
-    ant = Ant(20, 20, UP)
+    _state["grid"] = initGrid()
+    _state["ant"] = Ant(20, 20, UP)
 
-    render_and_update(grid, ant)
+    bindEventHandlers()
+
+    render_and_update()
     root.mainloop()
 
 if __name__ == "__main__":
