@@ -1,12 +1,5 @@
 import tkinter as tk
-
-UP=0
-RIGHT=1
-DOWN=2
-LEFT=3
-
-LIGHT="white"
-DARK="gray16"
+from enums import GridColor, Direction4, State
 
 SQUARE_SIZE = 16
 HALF_SQUARE_SIZE = SQUARE_SIZE / 2
@@ -65,25 +58,25 @@ class Ant:
 
             # determine the direction of rotation
             # directions are defined clockwise, so +/- 1 means clockwise/counterclockwise turning.
-            if cell_color == LIGHT:
+            if cell_color == GridColor.LIGHT:
                 self.direction = (self.direction + 1) % 4
             else:
                 self.direction = (self.direction - 1) % 4
 
             # before moving, toggle the cell color
-            canvas.itemconfig(cell_id, fill= LIGHT if cell_color == DARK else DARK)
+            canvas.itemconfig(cell_id, fill = GridColor.LIGHT if cell_color == GridColor.DARK else GridColor.DARK)
 
             # move the ant in the new direction
-            if self.direction == UP:
+            if self.direction == Direction4.UP:
                 self.y -= 1
                 dy -= SQUARE_SIZE
-            elif self.direction == RIGHT:
+            elif self.direction == Direction4.RIGHT:
                 self.x += 1
                 dx += SQUARE_SIZE
-            elif self.direction == DOWN:
+            elif self.direction == Direction4.DOWN:
                 self.y += 1
                 dy += SQUARE_SIZE
-            elif self.direction == LEFT:
+            elif self.direction == Direction4.LEFT:
                 self.x -= 1
                 dx -= SQUARE_SIZE
 
@@ -110,7 +103,7 @@ def newGridSquare(x, y):
     x2 = x1 + SQUARE_SIZE
     y2 = y1 + SQUARE_SIZE
 
-    return canvas.create_rectangle(x1, y1, x2, y2, fill=LIGHT, outline="black")
+    return canvas.create_rectangle(x1, y1, x2, y2, fill=GridColor.LIGHT, outline="black")
 
 def initGrid():
     # todo: bind grid to canvas size
@@ -145,7 +138,7 @@ def run():
     root.title("Antomata")
 
     _state["grid"] = initGrid()
-    _state["ant"] = Ant(20, 20, UP)
+    _state["ant"] = Ant(20, 20, Direction4.UP)
 
     bindEventHandlers()
 
