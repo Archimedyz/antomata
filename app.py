@@ -1,12 +1,12 @@
 import tkinter as tk
-from enums import GridColor, Direction4, State
+from enums import GridColor, Direction4, Mode
 
 SQUARE_SIZE = 16
 HALF_SQUARE_SIZE = SQUARE_SIZE / 2
 QUARTER_SQUARE_SIZE = SQUARE_SIZE / 4
 
-STEPS_PER_UPDATE = 10
-UPDATES_PER_SECOND = 10
+STEPS_PER_UPDATE = 1
+UPDATES_PER_SECOND = 5
 UPDATE_DELAY = 1000 // UPDATES_PER_SECOND
 
 CANVAS_WIDTH = 640
@@ -18,7 +18,7 @@ MIN_WINDOW_HEIGHT = 320
 _state = {
     "grid": None,
     "ant": None,
-    "running": True,
+    "mode": Mode.RUNNING,
     "steps_taken": 0
 }
 
@@ -46,7 +46,7 @@ class Ant:
 
         self.canvas_id = canvas.create_rectangle(ant_x0, ant_y0, ant_x1, ant_y1, fill="red", outline="black")
 
-    def move(self, grid):
+    def move_forward(self, grid):
         dx = 0
         dy = 0
 
@@ -84,20 +84,21 @@ class Ant:
 
         canvas.move(self.canvas_id, dx, dy)
 
+    def move_backward():
+        print("move_backward() - not implemented yet...")
+
 def render_and_update():
-    if not _state["running"]:
-        root.after(UPDATE_DELAY, render_and_update)
+    if _state["mode"] == Mode.RUNNING:
+        _state["ant"].move_forward(_state["grid"])
+
+    if (_state["steps_taken"] > MAX_STEPS):
+        print("Finished simulation. Reached MAX_STEPS limit.")
+        # stop the loop once we've passed the max steps
         return
 
-    _state["ant"].move(_state["grid"])
+    root.after(UPDATE_DELAY, render_and_update)
 
-    if (_state["steps_taken"] < MAX_STEPS):
-        root.after(UPDATE_DELAY, render_and_update)
-    else:
-        print("Finished simulation. Reached MAX_STEPS limit.")
-
-def newGridSquare(x, y):
-
+def new_grid_square(x, y):
     x1 = x * SQUARE_SIZE
     y1 = y * SQUARE_SIZE
     x2 = x1 + SQUARE_SIZE
@@ -105,13 +106,11 @@ def newGridSquare(x, y):
 
     return canvas.create_rectangle(x1, y1, x2, y2, fill=GridColor.LIGHT, outline="black")
 
-def initGrid():
+def init_grid():
     # todo: bind grid to canvas size
-    grid = [[newGridSquare(x, y) for x in range(50)] for y in range(50)]
+    grid = [[new_grid_square(x, y) for x in range(50)] for y in range(50)]
 
     return grid
-
-canvas
 
 def on_mouse_press(event):
     # This sets the anchor point for dragging the canvas content
@@ -122,27 +121,50 @@ def on_mouse_motion(event):
     canvas.scan_dragto(event.x, event.y, gain=1)
 
 def on_running_toggle(event=None):
-    _state["running"] = not _state["running"]
-    newRunningState = "Running" if _state["running"] else "Paused"
-    print("Simulation state toggled to: " + newRunningState)
+    if _state["mode"] == Mode.RUNNING:
+        _state["mode"] = Mode.STEP_THRU
+    elif _state["mode"] == Mode.STEP_THRU:
+        _state["mode"] = Mode.RUNNING
+    else:
+        _state["mode"] = Mode.RUNNING
+
+    print("Simulation state toggled to: " + str(_state["mode"]))
+
+def on_step_forward(event=None):
+    _state["ant"].move_forward(_state["grid"])
+
+def on_step_backward(event=None):
+    print("not implemented yet...")
+
+def on_exit(event=None):
+    print("Stopping simulation.")
+    root.destroy()
+
+def on_start():
+    print("Starting simulation.")
+    root.title("Antomata")
+
+    _state["grid"] = init_grid()
+    _state["ant"] = Ant(20, 20, Direction4.UP)
+
+    bindEventHandlers()
 
 def bindEventHandlers():
     canvas.bind("<ButtonPress-1>", on_mouse_press)
     canvas.bind("<B1-Motion>", on_mouse_motion)
 
     root.bind("<space>", on_running_toggle)
-
-
+    root.bind("<Left>", on_step_backward)
+    root.bind("<Right>", on_step_forward)
+    root.bind("<comma>", on_step_backward)
+    root.bind("<period>", on_step_forward)
+    root.bind("q", on_exit)
 
 def run():
-    root.title("Antomata")
-
-    _state["grid"] = initGrid()
-    _state["ant"] = Ant(20, 20, Direction4.UP)
-
-    bindEventHandlers()
+    on_start()
 
     render_and_update()
+
     root.mainloop()
 
 if __name__ == "__main__":

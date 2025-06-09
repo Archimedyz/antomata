@@ -6,7 +6,7 @@ class Direction4(IntEnum):
     DOWN=2
     LEFT=3
 
-class State(Enum):
+class Mode(Enum):
     RUNNING = auto(),
     STEP_THRU = auto(),
     CONFIG = auto()
