@@ -2,18 +2,26 @@ import tkinter as tk
 from enums import GridColor, Direction4, Mode
 
 SQUARE_SIZE = 16
-HALF_SQUARE_SIZE = SQUARE_SIZE / 2
-QUARTER_SQUARE_SIZE = SQUARE_SIZE / 4
+HALF_SQUARE_SIZE = SQUARE_SIZE // 2
+QUARTER_SQUARE_SIZE = SQUARE_SIZE // 4
 
 STEPS_PER_UPDATE = 1
 UPDATES_PER_SECOND = 10
 UPDATE_DELAY = 1000 // UPDATES_PER_SECOND
 
-CANVAS_WIDTH = 640
-CANVAS_HEIGHT = 640
+GRID_WIDTH = 100
+GRID_LENGTH = 100
+
+CANVAS_WIDTH = SQUARE_SIZE * GRID_WIDTH
+CANVAS_HEIGHT = SQUARE_SIZE * GRID_LENGTH
 
 MIN_WINDOW_WIDTH = 320
 MIN_WINDOW_HEIGHT = 320
+
+MAX_WINDOW_WIDTH = 640
+MAX_WINDOW_HEIGHT = 640
+
+MAX_STEPS = 20000
 
 _state = {
     "grid": None,
@@ -23,14 +31,13 @@ _state = {
 }
 
 root = tk.Tk()
-canvas = tk.Canvas(root, width=CANVAS_WIDTH, height=CANVAS_HEIGHT)
+grid_canvas = tk.Canvas(root, width=CANVAS_WIDTH, height=CANVAS_HEIGHT)
 
+root.maxsize(MAX_WINDOW_WIDTH, MAX_WINDOW_HEIGHT)
 root.minsize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
 root.update_idletasks() # Ensures the canvas dimensions are calculated
 
-canvas.pack(fill=tk.BOTH, expand=True)
-
-MAX_STEPS = 20000
+grid_canvas.pack(fill=tk.BOTH, expand=True)
 
 class Ant:
     def __init__(self, start_x, start_y, start_direction):
@@ -45,7 +52,7 @@ class Ant:
         ant_x1 = ant_x0 + HALF_SQUARE_SIZE
         ant_y1 = ant_y0 + HALF_SQUARE_SIZE
 
-        self.canvas_id = canvas.create_rectangle(ant_x0, ant_y0, ant_x1, ant_y1, fill="red", outline="black")
+        self.canvas_id = grid_canvas.create_rectangle(ant_x0, ant_y0, ant_x1, ant_y1, fill="red", outline="black")
 
     def move_forward(self, grid):
         dx = 0
@@ -54,20 +61,20 @@ class Ant:
         for _ in range(STEPS_PER_UPDATE):
             # get the cell and its color
             cell_id = grid[self.y][self.x]
-            cell_color = canvas.itemcget(cell_id, "fill")
+            cell_color = grid_canvas.itemcget(cell_id, "fill")
 
             # record the direction before moving
             self.move_history.append(self.direction)
 
             # determine the direction of rotation
-            # directions are defined clockwise, so +/- 1 means clockwise/counterclockwise turning.
+            # directions are defined clockwise, so +/- 1 means clockwise/counter-clockwise turning.
             if cell_color == GridColor.LIGHT:
                 self.direction = (self.direction + 1) % 4
             else:
                 self.direction = (self.direction - 1) % 4
 
             # before moving, toggle the cell color
-            canvas.itemconfig(cell_id, fill = GridColor.LIGHT if cell_color == GridColor.DARK else GridColor.DARK)
+            grid_canvas.itemconfig(cell_id, fill = GridColor.LIGHT if cell_color == GridColor.DARK else GridColor.DARK)
 
             # move the ant in the new direction
             if self.direction == Direction4.UP:
@@ -85,7 +92,7 @@ class Ant:
 
         _state["steps_taken"] += STEPS_PER_UPDATE
 
-        canvas.move(self.canvas_id, dx, dy)
+        grid_canvas.move(self.canvas_id, dx, dy)
 
     def move_backward(self, grid):
         if len(self.move_history) == 0:
@@ -115,14 +122,14 @@ class Ant:
 
             # get the old cell and its color
             cell_id = grid[self.y][self.x]
-            cell_color = canvas.itemcget(cell_id, "fill")
+            cell_color = grid_canvas.itemcget(cell_id, "fill")
 
             # toggle the cell color to return it to its old value
-            canvas.itemconfig(cell_id, fill = GridColor.LIGHT if cell_color == GridColor.DARK else GridColor.DARK)
+            grid_canvas.itemconfig(cell_id, fill = GridColor.LIGHT if cell_color == GridColor.DARK else GridColor.DARK)
 
         _state["steps_taken"] -= STEPS_PER_UPDATE
 
-        canvas.move(self.canvas_id, dx, dy)
+        grid_canvas.move(self.canvas_id, dx, dy)
 
 def render_and_update():
     if _state["mode"] == Mode.RUNNING:
@@ -141,21 +148,21 @@ def new_grid_square(x, y):
     x2 = x1 + SQUARE_SIZE
     y2 = y1 + SQUARE_SIZE
 
-    return canvas.create_rectangle(x1, y1, x2, y2, fill=GridColor.LIGHT, outline="black")
+    return grid_canvas.create_rectangle(x1, y1, x2, y2, fill=GridColor.LIGHT, outline="black")
 
 def init_grid():
     # todo: bind grid to canvas size
-    grid = [[new_grid_square(x, y) for x in range(50)] for y in range(50)]
+    grid = [[new_grid_square(x, y) for x in range(GRID_WIDTH)] for y in range(GRID_LENGTH)]
 
     return grid
 
 def on_mouse_press(event):
     # This sets the anchor point for dragging the canvas content
-    canvas.scan_mark(event.x, event.y)
+    grid_canvas.scan_mark(event.x, event.y)
 
 def on_mouse_motion(event):
     # When dragging with the middle mouse button, scroll the canvas
-    canvas.scan_dragto(event.x, event.y, gain=1)
+    grid_canvas.scan_dragto(event.x, event.y, gain=1)
 
 def on_running_toggle(event=None):
     if _state["mode"] == Mode.RUNNING:
@@ -182,13 +189,18 @@ def on_start():
     root.title("Antomata")
 
     _state["grid"] = init_grid()
-    _state["ant"] = Ant(20, 20, Direction4.UP)
 
-    bindEventHandlers()
+    ant_start_x = GRID_WIDTH // 2
+    ant_start_y = GRID_LENGTH // 2
+
+    _state["ant"] = Ant(ant_start_x, ant_start_y, Direction4.UP)
+
+    # A small hack to ensure the window is rendered before centering.
+    root.after(100, center_view_on_ant)
 
 def bindEventHandlers():
-    canvas.bind("<ButtonPress-1>", on_mouse_press)
-    canvas.bind("<B1-Motion>", on_mouse_motion)
+    grid_canvas.bind("<ButtonPress-1>", on_mouse_press)
+    grid_canvas.bind("<B1-Motion>", on_mouse_motion)
 
     root.bind("<space>", on_running_toggle)
     root.bind("<Left>", on_step_backward)
@@ -197,7 +209,24 @@ def bindEventHandlers():
     root.bind("<period>", on_step_forward)
     root.bind("q", on_exit)
 
+def center_view_on_ant():
+    x = _state["ant"].x * SQUARE_SIZE
+    y = _state["ant"].y * SQUARE_SIZE
+
+    size = (root.winfo_width(), root.winfo_height())
+
+    drag_x = int((size[0] / 2) - x)
+    drag_y = int((size[1] / 2) - y)
+
+    print("ant:  " + str([x, y]))
+    print("size: " + str(size))
+    print("drag: " + str([drag_x, drag_y]))
+
+    grid_canvas.scan_dragto(drag_x, drag_y, gain=1)
+
 def run():
+    bindEventHandlers()
+
     on_start()
 
     render_and_update()
